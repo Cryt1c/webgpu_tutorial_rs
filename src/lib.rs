@@ -20,6 +20,7 @@ struct State {
     // unsafe references to the window's resources.
     window: Window,
     render_pipeline: wgpu::RenderPipeline,
+    clear_color: wgpu::Color,
 }
 
 impl State {
@@ -136,6 +137,13 @@ impl State {
             multiview: None,
         });
 
+        let clear_color = wgpu::Color {
+            r: 0.1,
+            g: 0.2,
+            b: 0.3,
+            a: 1.0,
+        };
+
         Self {
             surface,
             device,
@@ -144,6 +152,7 @@ impl State {
             size,
             window,
             render_pipeline,
+            clear_color,
         }
     }
 
@@ -186,12 +195,7 @@ impl State {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(self.clear_color),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -272,6 +276,18 @@ pub async fn run() {
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                             // new_inner_size is &&mut so w have to dereference it twice
                             state.resize(**new_inner_size);
+                        }
+                        WindowEvent::CursorMoved {
+                            device_id,
+                            position,
+                            modifiers,
+                        } => {
+                            state.clear_color = wgpu::Color {
+                                r: position.x / state.size.width as f64,
+                                g: position.y / state.size.height as f64,
+                                b: 0.3,
+                                a: 1.0,
+                            };
                         }
                         _ => {}
                     }
