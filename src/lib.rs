@@ -171,7 +171,18 @@ impl State {
 
     #[allow(unused_variables)]
     fn input(&mut self, event: &WindowEvent) -> bool {
-        false
+        match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.clear_color = wgpu::Color {
+                    r: position.x / self.size.width as f64,
+                    g: position.y / self.size.height as f64,
+                    b: 0.3,
+                    a: 1.0,
+                };
+                return true;
+            }
+            _ => false,
+        }
     }
 
     fn update(&mut self) {}
@@ -276,18 +287,6 @@ pub async fn run() {
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                             // new_inner_size is &&mut so w have to dereference it twice
                             state.resize(**new_inner_size);
-                        }
-                        WindowEvent::CursorMoved {
-                            device_id,
-                            position,
-                            modifiers,
-                        } => {
-                            state.clear_color = wgpu::Color {
-                                r: position.x / state.size.width as f64,
-                                g: position.y / state.size.height as f64,
-                                b: 0.3,
-                                a: 1.0,
-                            };
                         }
                         _ => {}
                     }
