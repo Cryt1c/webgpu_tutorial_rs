@@ -12,6 +12,7 @@ log = "0.4.20"
 pollster = "0.3.0"
 wgpu = "0.18.0"
 winit = "0.28"
+bytemuck = { version = "1.12", features = [ "derive" ] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
