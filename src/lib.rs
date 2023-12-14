@@ -218,7 +218,6 @@ struct State {
     window: Window,
     render_pipeline: wgpu::RenderPipeline,
     clear_color: wgpu::Color,
-    diffuse_bind_group: wgpu::BindGroup,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
@@ -296,10 +295,6 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let diffuse_bytes = include_bytes!("happy_tree.png");
-        let diffuse_texture =
-            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy_tree.png").unwrap();
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -322,20 +317,6 @@ impl State {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_binding_group"),
-        });
 
         let camera = Camera {
             eye: (0.0, 1.0, 2.0).into(),
@@ -487,7 +468,6 @@ impl State {
             window,
             render_pipeline,
             clear_color,
-            diffuse_bind_group,
             camera,
             camera_uniform,
             camera_buffer,
@@ -590,12 +570,14 @@ impl State {
 
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            render_pass.draw_model_instanced(&self.obj_model, 0..self.instances.len() as u32, &self.camera_bind_group);
+
+            let mesh = &self.obj_model.meshes[0];
+            let material = &self.obj_model.materials[mesh.material];
 
             use model::DrawModel;
             render_pass
-                .draw_mesh_instanced(&self.obj_model.meshes[0], 0..self.instances.len() as u32)
+                .draw_mesh_instanced(mesh, material, 0..self.instances.len() as u32, &self.camera_bind_group);
         }
 
         self.queue.submit(iter::once(encoder.finish()));
