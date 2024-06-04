@@ -2,6 +2,7 @@ mod texture;
 
 use std::iter;
 use texture::Texture;
+use texture::VolTexture;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -37,12 +38,16 @@ struct CameraUniform {
     // We can't use cgmath with bytemuck directly so we will
     // convert the Matrix4 into a 4x4 f32 array
     view_proj: [[f32; 4]; 4],
+    position: [f32; 3],
+    _padding: u32,
 }
 impl CameraUniform {
     fn new() -> Self {
         use cgmath::SquareMatrix;
         Self {
             view_proj: cgmath::Matrix4::identity().into(),
+            position: [0.0, 0.0, 2.5],
+            _padding: 0,
         }
     }
 
@@ -86,7 +91,6 @@ struct State {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
     position: [f32; 3],
-    tex_coords: [f32; 2],
 }
 impl Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -111,28 +115,39 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [-0.0868241, 0.49240386, 0.0],
-        tex_coords: [0.4131759, 0.00759614],
-    }, // A
+        position: [-0.5, -0.5, 0.5],
+    },
     Vertex {
-        position: [-0.49513406, 0.06958647, 0.0],
-        tex_coords: [0.0048659444, 0.43041354],
-    }, // B
+        position: [0.5, -0.5, 0.5],
+    },
     Vertex {
-        position: [-0.21918549, -0.44939706, 0.0],
-        tex_coords: [0.28081453, 0.949397],
-    }, // C
+        position: [0.5, 0.5, 0.5],
+    },
     Vertex {
-        position: [0.35966998, -0.3473291, 0.0],
-        tex_coords: [0.85967, 0.84732914],
-    }, // D
+        position: [-0.5, 0.5, 0.5],
+    },
     Vertex {
-        position: [0.44147372, 0.2347359, 0.0],
-        tex_coords: [0.9414737, 0.2652641],
-    }, // E
+        position: [-0.5, -0.5, -0.5],
+    },
+    Vertex {
+        position: [0.5, -0.5, -0.5],
+    },
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+    },
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+    },
 ];
 
-const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
+const INDICES: &[u16] = &[
+    0, 1, 2, 0, 2, 3, // front
+    1, 5, 6, 1, 6, 2, // right
+    5, 4, 7, 5, 7, 6, // back
+    4, 0, 3, 4, 3, 7, // left
+    2, 6, 7, 2, 7, 3, // top
+    4, 5, 1, 4, 1, 0, // bottom
+];
 
 impl State {
     async fn new(window: Window) -> Self {
@@ -200,9 +215,9 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let diffuse_bytes = include_bytes!("happy_tree.png");
+        let vol_texture = Texture::read_vol("examples/assets/Skull.vol");
         let diffuse_texture =
-            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy_tree.png").unwrap();
+            Texture::from_bytes(&device, &queue, &vol_texture, "happy_tree.png").unwrap();
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -212,7 +227,7 @@ impl State {
                         visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
+                            view_dimension: wgpu::TextureViewDimension::D3,
                             sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         },
                         count: None,
@@ -242,7 +257,7 @@ impl State {
         });
 
         let camera = Camera {
-            eye: (0.0, 1.0, 2.0).into(),
+            eye: (0.0, 0.0, 2.5).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,
@@ -261,7 +276,7 @@ impl State {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -347,9 +362,9 @@ impl State {
         });
 
         let clear_color = wgpu::Color {
-            r: 0.1,
-            g: 0.2,
-            b: 0.3,
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
             a: 1.0,
         };
 
@@ -391,12 +406,12 @@ impl State {
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
-                self.clear_color = wgpu::Color {
-                    r: position.x / self.size.width as f64,
-                    g: position.y / self.size.height as f64,
-                    b: 0.3,
-                    a: 1.0,
-                };
+                // self.clear_color = wgpu::Color {
+                //     r: position.x / self.size.width as f64,
+                //     g: position.y / self.size.height as f64,
+                //     b: 0.3,
+                //     a: 1.0,
+                // };
                 return true;
             }
             WindowEvent::KeyboardInput {
