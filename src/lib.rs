@@ -2,7 +2,6 @@ mod texture;
 
 use std::iter;
 use texture::Texture;
-use texture::VolTexture;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -24,7 +23,7 @@ struct Camera {
 }
 impl Camera {
     fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view = cgmath::Matrix4::look_at(self.eye, self.target, self.up);
+        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         return OPENGL_TO_WGPU_MATRIX * proj * view;
     }
@@ -80,10 +79,6 @@ struct State {
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: Texture,
-    camera: Camera,
-    camera_uniform: CameraUniform,
-    camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 }
 
@@ -356,7 +351,7 @@ impl State {
             multiview: None,
         });
 
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
@@ -381,10 +376,6 @@ impl State {
             index_buffer,
             num_indices,
             diffuse_bind_group,
-            diffuse_texture,
-            camera,
-            camera_uniform,
-            camera_buffer,
             camera_bind_group,
         }
     }
