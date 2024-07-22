@@ -16,6 +16,7 @@ bytemuck = { version = "1.12", features = [ "derive" ] }
 anyhow = "1.0"
 cgmath = "0.18"
 three-d-asset = { version = "0.7.0", features = ["vol"] }
+byteorder = "1.5.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

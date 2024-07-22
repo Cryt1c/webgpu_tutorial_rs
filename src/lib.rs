@@ -210,7 +210,7 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let vol_texture = Texture::read_vol("examples/assets/Skull.vol");
+        let vol_texture = Texture::read_raw("examples/assets/sinus.raw", "examples/assets/sinus.mhd");
         let diffuse_texture =
             Texture::from_bytes(&device, &queue, &vol_texture, "happy_tree.png").unwrap();
 

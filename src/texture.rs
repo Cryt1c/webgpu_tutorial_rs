@@ -1,3 +1,10 @@
+use byteorder::LittleEndian;
+use byteorder::ReadBytesExt;
+use std::{
+    fs::{read_to_string, File},
+    io::BufReader,
+};
+
 use anyhow::*;
 use three_d_asset::{Texture3D, TextureData};
 
@@ -100,5 +107,77 @@ impl Texture {
             },
             texture_data,
         }
+    }
+
+    pub fn parse_meta_data_dim(meta_data: &str) -> Dim {
+        let mut dimensions = Dim {
+            width: 0,
+            height: 0,
+            depth: 0,
+        };
+
+        meta_data.lines().for_each(|line| {
+            let mut data = line.split(" = ");
+
+            match data.next() {
+                Some("NDims") => {
+                    let _value = data.next().unwrap().parse::<i32>().unwrap();
+                    // TODO: Use NDims info.
+                }
+                Some("DimSize") => {
+                    let value = data
+                        .next()
+                        .unwrap()
+                        .split(" ")
+                        .map(|x| x.parse::<i32>().unwrap())
+                        .collect::<Vec<i32>>();
+                    dimensions.width = value[0];
+                    dimensions.height = value[1];
+                    dimensions.depth = value[2];
+                }
+                Some("ElementSpacing") => {
+                    let _value = data.next().unwrap();
+                    // TODO: Use ElementSpacing info.
+                }
+                _ => {
+                    println!("Unknown field");
+                }
+            }
+        });
+
+        dimensions
+    }
+
+    pub fn read_raw(file_path: &str, meta_file_path: &str) -> VolTexture {
+        let meta_data = read_to_string(meta_file_path).expect("Unable to read MHD file");
+        let dimensions = Texture::parse_meta_data_dim(&meta_data);
+
+        let num_elements = dimensions.height * dimensions.width * dimensions.depth;
+        let file = File::open(file_path).expect("Unable to open RAW file");
+        let mut reader = BufReader::new(file);
+
+        let mut raw_data = vec![0u16; num_elements as usize];
+        reader
+            .read_u16_into::<LittleEndian>(&mut raw_data)
+            .expect("Unable to read u16 from RAW file");
+
+        let buffer: Vec<u8> = raw_data
+            .iter()
+            .map(|&value| Texture::normalize_hounsfield_units(value))
+            .collect();
+
+        VolTexture {
+            dimensions: Dim {
+                width: dimensions.width,
+                height: dimensions.height,
+                depth: dimensions.depth,
+            },
+            texture_data: buffer,
+        }
+    }
+
+    pub fn normalize_hounsfield_units(value: u16) -> u8 {
+        let normalized_hu_value = (value as f32 / 4095.0) * 255.0; // Normalize to [0, 255]
+        normalized_hu_value as u8
     }
 }
